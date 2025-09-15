@@ -49,6 +49,7 @@
 
       #mappingDisplay{ margin-top:12px; }
       .table-wrap{ padding:14px; }
+      .status{ color:var(--muted); margin-bottom:8px; }
       iframe{ width:100%; border:1px solid var(--border); border-radius:10px; background:#fff; min-height:420px; }
     </style>
   </head>
@@ -60,7 +61,7 @@
       <div class="heading-row">
         <h3 style="margin:0">Datenart wählen</h3>
         <div class="search">
-          <label for="globalSearchInput">Globale Suche (nur Optik)</label>
+          <label for="globalSearchInput">Globale Suche</label>
           <div>
             <input type="text" id="globalSearchInput" placeholder="Begriff, Feld oder Kategorie" />
             <button id="clearSearch" class="btn" title="Suche leeren" type="button">Leeren</button>
@@ -127,6 +128,65 @@
       }
 
       // -----------------------
+      // Suche (Highlight im iframe)
+      // -----------------------
+      function clearMarks(doc){
+        doc?.querySelectorAll('mark.__hit')?.forEach(m=>{
+          const t = doc.createTextNode(m.textContent);
+          m.replaceWith(t);
+        });
+      }
+      function highlight(doc, term){
+        if(!term) return;
+        // CSS für Markierungen injizieren (nur einmal)
+        if(!doc.getElementById('__search_mark_style')){
+          const st = doc.createElement('style');
+          st.id='__search_mark_style';
+          st.textContent = 'mark.__hit{background:#ffea8a;padding:0 .08em}';
+          (doc.head || doc.body).appendChild(st);
+        }
+        const rx = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi');
+        const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, {
+          acceptNode(node){
+            const v = node.nodeValue;
+            if(!v || !v.trim()) return NodeFilter.FILTER_REJECT;
+            if(!rx.test(v)) return NodeFilter.FILTER_REJECT;
+            return NodeFilter.FILTER_ACCEPT;
+          }
+        });
+        const nodes = [];
+        while(walker.nextNode()) nodes.push(walker.currentNode);
+        nodes.forEach(node=>{
+          const frag = doc.createDocumentFragment();
+          let last = 0;
+          node.nodeValue.replace(rx, (m, idx)=>{
+            frag.append(doc.createTextNode(node.nodeValue.slice(last, idx)));
+            const mark = doc.createElement('mark'); mark.className='__hit'; mark.textContent=m;
+            frag.append(mark);
+            last = idx + m.length;
+            return m;
+          });
+          frag.append(doc.createTextNode(node.nodeValue.slice(last)));
+          node.parentNode.replaceChild(frag, node);
+        });
+      }
+      function applySearchToFrame(){
+        const q = $("#globalSearchInput").value.trim();
+        const frame = document.querySelector("#mappingDisplay iframe");
+        if(!frame) return;
+        try{
+          const doc = frame.contentDocument; // same-origin oder srcdoc
+          if(!doc) return;
+          clearMarks(doc);
+          if(q) highlight(doc, q);
+          $("#mappingDisplay").style.outline = 'none';
+        }catch{
+          // Cross-Origin: nicht zugreifbar
+          $("#mappingDisplay").style.outline = q ? '2px dashed #c7d2fe' : 'none';
+        }
+      }
+
+      // -----------------------
       // Chips
       // -----------------------
       function renderTypeChips(){
@@ -181,18 +241,18 @@
 
         // Wrapper
         const wrap = el('div',{class:'table-wrap'});
-        const status = el('div',{style:'color:var(--muted);margin-bottom:8px'}, `Lade: ${absUrl} …`);
+        const status = el('div',{class:'status'}, `Lade: ${absUrl} …`);
         const frame = el('iframe',{ loading:'lazy' });
         wrap.append(status, frame);
         container.append(wrap);
 
-        // 1) fetch → srcdoc (stabil, gleiche Origin auf GitHub Pages)
+        // 1) fetch → srcdoc (same-origin auf GitHub Pages)
         try{
           const res = await fetch(absUrl, { cache:'no-cache' });
           if(!res.ok) throw new Error(`HTTP ${res.status}`);
           let html = await res.text();
 
-          // <base> einsetzen, damit relative Pfade in der eingebetteten HTML funktionieren
+          // <base> einsetzen, damit relative Pfade funktionieren
           const baseHref = absUrl.replace(/[^/]*$/, '');
           const baseTag = `<base href="${baseHref}">`;
           if(/<head[^>]*>/i.test(html)){
@@ -204,6 +264,10 @@
           }
 
           frame.srcdoc = html;
+          status.textContent = "";                 // <-- kein „eingebettet aus“
+          frame.addEventListener('load', applySearchToFrame);
+          // falls das load-event bei srcdoc schon fired: kurz verzögert anwenden
+          setTimeout(applySearchToFrame, 0);
           autoResize(frame);
           return;
         }catch(err){
@@ -211,8 +275,14 @@
           console.warn('fetch fehlgeschlagen → fallback auf <iframe src>:', err);
           status.textContent = `Direktes Einbetten: ${absUrl}`;
           frame.src = absUrl;
-          frame.addEventListener('load', ()=>{ status.textContent = `Geladen: ${absUrl}`; autoResize(frame); });
-          frame.addEventListener('error', ()=>{ status.innerHTML = `<span style="color:#b91c1c">Konnte nicht laden: ${absUrl}</span>`; });
+          frame.addEventListener('load', ()=>{
+            status.textContent = "";               // ebenfalls ohne Hinweis
+            autoResize(frame);
+            applySearchToFrame();
+          });
+          frame.addEventListener('error', ()=>{
+            status.innerHTML = `<span style="color:#b91c1c">Konnte nicht laden: ${absUrl}</span>`;
+          });
         }
       }
 
@@ -233,16 +303,20 @@
       }
 
       // -----------------------
-      // Suche (hier nur Optik)
+      // Suche: Events
       // -----------------------
       const globalInput = $("#globalSearchInput");
       const clearBtn = $("#clearSearch");
       function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
+
       globalInput.addEventListener("input", debounce(()=>{
-        const q = globalInput.value.trim();
-        $("#mappingDisplay").style.outline = q ? '2px dashed #c7d2fe' : 'none';
+        applySearchToFrame();
       }, 200));
-      clearBtn.addEventListener("click", ()=>{ globalInput.value = ""; $("#mappingDisplay").style.outline = 'none'; });
+
+      clearBtn.addEventListener("click", ()=>{
+        globalInput.value = "";
+        applySearchToFrame();
+      });
 
       // -----------------------
       // Tabs
