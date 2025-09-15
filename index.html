@@ -1,352 +1,181 @@
 <!DOCTYPE html>
 <html lang="de">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Feld-Mapping Tool</title>
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
-    <style>
-      :root{
-        --blue:#2563eb; --bg:#f7f8fb; --border:#d9dee8; --border-soft:#e7ebf3;
-        --text:#0f172a; --muted:#6b7280; --radius:12px; --shadow:0 8px 24px rgba(15,23,42,.06);
-      }
-      *{ box-sizing:border-box; }
-      body{ font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Tahoma, sans-serif; margin:0; background:var(--bg); color:var(--text); }
-      .container{ max-width:1100px; margin:0 auto; padding:24px; }
-      h1{ font-size:1.5rem; margin:0 0 18px; }
-      h3{ font-size:1rem; margin:22px 0 8px; font-weight:600; }
+<head>
+  <meta charset="UTF-8" />
+  <title>Feld-Mapping Tool</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root{
+      --bg:#f7f8fb; --panel:#ffffff; --card:#ffffff;
+      --text:#0f172a; --muted:#6b7280;
+      --border:#d9dee8; --border-soft:#e7ebf3;
+      --accent:#2563eb; --accent-weak:#eef3ff;
+      --ok:#059669; --warn:#b45309; --danger:#b91c1c;
+      --radius:14px; --shadow:0 8px 24px rgba(15,23,42,.08);
+      --chip:#ffffff; --chip-active:#eef3ff;
+      --btn:#ffffff; --btn-border:#d9dee8;
+      --focus:0 0 0 3px rgba(37,99,235,.25);
+    }
+    *{box-sizing:border-box;}
+    html,body{margin:0;height:100%;}
+    body{
+      font:14px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,Tahoma,sans-serif;
+      background:var(--bg);color:var(--text);
+    }
 
-      .heading-row{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
-      .search{ display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
-      .search input{
-        padding:10px 12px; border:1px solid var(--border); background:#fff; border-radius:10px; font-size:14px; width:min(320px,90vw);
-        outline:none;
-      }
-      .search input:focus{ box-shadow:0 0 0 3px rgba(37,99,235,.12); border-color:var(--blue); }
-      .btn{ padding:8px 12px; border:1px solid var(--border); background:#fff; border-radius:10px; cursor:pointer; font-size:14px; }
-      button:focus-visible{ outline:3px solid rgba(37,99,235,.35); outline-offset:2px; }
+    .topbar{
+      position:sticky;top:0;z-index:20;
+      background:var(--panel);
+      border-bottom:1px solid var(--border-soft);
+      box-shadow:0 2px 6px rgba(0,0,0,.04);
+    }
+    .topbar-inner{
+      max-width:1200px;margin:0 auto;padding:14px 20px;
+      display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;
+    }
+    h1{margin:0;font-size:1.2rem;}
 
-      .chips{ display:flex; gap:8px; flex-wrap:wrap; }
-      .chip{ padding:.42rem .75rem; border:1px solid var(--border); border-radius:999px; background:#fff; cursor:pointer; font-size:.92rem; transition:.15s; }
-      .chip.active{ background:#eef3ff; border-color:#cfdaf8; color:#0b3b8b; font-weight:600; }
-      .chip:focus-visible{ box-shadow:0 0 0 3px rgba(37,99,235,.25); }
+    .search{display:flex;gap:8px;align-items:center;}
+    .input{display:flex;align-items:center;gap:6px;
+      padding:8px 12px;border:1px solid var(--border);border-radius:12px;
+      background:var(--card);}
+    .input input{border:0;outline:0;background:transparent;color:inherit;width:220px;}
+    .btn{padding:8px 12px;border:1px solid var(--btn-border);background:var(--btn);
+      border-radius:10px;cursor:pointer;}
+    .btn:focus-visible{outline:none;box-shadow:var(--focus);}
 
-      .segment{ display:inline-flex; border:1px solid var(--border); background:#fff; border-radius:999px; overflow:hidden; }
-      .segment button{ padding:.5rem 1rem; border:0; background:transparent; font-size:.95rem; cursor:pointer; }
-      .segment button.active{ background:#fefefe; box-shadow:inset 0 0 0 2px var(--blue); border-radius:999px; }
+    .container{max-width:1200px;margin:0 auto;padding:22px 20px;}
+    .chips{display:flex;gap:8px;flex-wrap:wrap;}
+    .chip{padding:.45rem .8rem;border:1px solid var(--border);border-radius:999px;
+      background:var(--chip);cursor:pointer;}
+    .chip.active{background:var(--chip-active);border-color:var(--accent);color:var(--accent);font-weight:600;}
+    .chip:focus-visible{outline:none;box-shadow:var(--focus);}
 
-      .card{ background:#fff; border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:0; }
-      .sticky-tools{
-        position:sticky; top:0; z-index:5;
-        background:linear-gradient(#fff, #fff) padding-box, linear-gradient(180deg, rgba(0,0,0,.04), rgba(0,0,0,0)) border-box;
-        border-bottom:1px solid var(--border-soft);
-        padding:10px 14px; border-top-left-radius:var(--radius); border-top-right-radius:var(--radius);
-        display:flex; gap:12px; align-items:center; flex-wrap:wrap; justify-content:flex-start;
-      }
-      .pills{ display:inline-flex; align-items:center; gap:10px; padding:8px 12px; background:#fff; border:1px solid var(--border-soft); border-radius:999px; color:#1f2937; font-weight:600; font-size:.95rem; box-shadow:0 2px 8px rgba(15,23,42,.04); }
-      .pill-name{ white-space:nowrap; color:#111827; }
-      .pill-sep{ color:#6b7280; }
+    .segment{display:inline-flex;border:1px solid var(--border);background:var(--panel);border-radius:999px;}
+    .segment button{padding:.5rem 1rem;border:0;background:transparent;cursor:pointer;}
+    .segment button.active{background:var(--accent-weak);font-weight:600;color:var(--accent);}
 
-      #mappingDisplay{ margin-top:12px; }
-      .table-wrap{ padding:14px; }
-      .status{ color:var(--muted); margin-bottom:8px; }
-      iframe{ width:100%; border:1px solid var(--border); border-radius:10px; background:#fff; min-height:420px; }
-    </style>
-  </head>
-
-  <body>
-    <div class="container">
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);}
+    .sticky-tools{position:sticky;top:60px;z-index:10;background:var(--panel);
+      border-bottom:1px solid var(--border-soft);padding:10px 14px;border-top-left-radius:var(--radius);border-top-right-radius:var(--radius);
+      display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;background:var(--panel);
+      border:1px solid var(--border-soft);border-radius:999px;font-weight:600;color:var(--text);}
+    .pill .sep{opacity:.6;}
+    #mappingDisplay{margin-top:12px;}
+    .table-wrap{padding:14px;}
+    .status{color:var(--muted);margin-bottom:8px;}
+    iframe{width:100%;min-height:420px;border:1px solid var(--border);border-radius:12px;background:var(--card);}
+    mark.__hit{background:#ffea8a;padding:0 .08em;}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
       <h1>Mapping-Tool</h1>
-
-      <div class="heading-row">
-        <h3 style="margin:0">Datenart wählen</h3>
-        <div class="search">
-          <label for="globalSearchInput">Globale Suche</label>
-          <div>
-            <input type="text" id="globalSearchInput" placeholder="Begriff, Feld oder Kategorie" />
-            <button id="clearSearch" class="btn" title="Suche leeren" type="button">Leeren</button>
-          </div>
+      <form class="search" onsubmit="return false;">
+        <div class="input">
+          <input id="globalSearchInput" type="search" placeholder="Globale Suche…" autocomplete="off"/>
         </div>
-      </div>
-
-      <div id="dataTypes" class="chips"></div>
-
-      <h3>Datentyp wählen</h3>
-      <div class="segment" role="tablist" aria-label="Ansicht">
-        <button id="viewFieldBtn" role="tab" aria-selected="true" aria-controls="mappingDisplay" class="active" type="button">Feld</button>
-        <button id="viewCategoryBtn" role="tab" aria-selected="false" aria-controls="mappingDisplay" type="button">Kategorie</button>
-      </div>
-
-      <div id="mappingDisplay" class="card"></div>
+        <button id="clearSearch" class="btn" type="button">Leeren</button>
+      </form>
     </div>
+  </header>
 
-    <script>
-      // -----------------------
-      // Inhalte je Datenart/Typ
-      // -----------------------
-      const contentLocations = {
-        POI:    { field:"content/poi-fields.html",     category:"content/poi-categories.html" },
-        Tour:   { field:"content/tour-fields.html",    category:"content/tour-categories.html" },
-        Event:  { field:"content/event-fields.html",   category:"content/event-categories.html" },
-        Gastro: { field:"content/gastro-fields.html",  category:"content/gastro-categories.html" },
-        Hotel:  { field:"content/hotel-fields.html",   category:"content/hotel-categories.html" },
-        Angebot:{ field:"content/angebot-fields.html", category:"content/angebot-categories.html" }
-      };
+  <main class="container">
+    <div class="chips" id="dataTypes"></div>
+    <div class="segment" role="tablist">
+      <button id="viewFieldBtn" role="tab" aria-selected="true" class="active" type="button">Feld</button>
+      <button id="viewCategoryBtn" role="tab" aria-selected="false" type="button">Kategorie</button>
+    </div>
+    <section id="mappingDisplay" class="card"></section>
+  </main>
 
-      // -----------------------
-      // State & Stammdaten
-      // -----------------------
-      const dataTypes = Object.keys(contentLocations);
-      let selectedDataType = dataTypes[0] || null;
-      let viewMode = "field"; // 'field' | 'category'
-      const selectedSource = "systemA";
-      const systems = { source: [{ id:"systemA", name:"Outdooractive" }] };
-      const byId = new Map(systems.source.map(s=>[s.id,s]));
-      const targetName = "SaTourN";
+  <script>
+    const contentLocations={
+      POI:{field:"content/poi-fields.html",category:"content/poi-categories.html"},
+      Tour:{field:"content/tour-fields.html",category:"content/tour-categories.html"},
+      Event:{field:"content/event-fields.html",category:"content/event-categories.html"},
+      Gastro:{field:"content/gastro-fields.html",category:"content/gastro-categories.html"},
+      Hotel:{field:"content/hotel-fields.html",category:"content/hotel-categories.html"},
+      Angebot:{field:"content/angebot-fields.html",category:"content/angebot-categories.html"}
+    };
+    const dataTypes=Object.keys(contentLocations);
+    let selectedDataType=dataTypes[0];let viewMode="field";
+    const targetName="SaTourN";
 
-      // -----------------------
-      // DOM helpers
-      // -----------------------
-      const $ = s => document.querySelector(s);
-      const el = (tag, props = {}, ...kids) => {
-        const n = document.createElement(tag);
-        Object.entries(props).forEach(([k,v])=>{
-          if(k==="class") n.className = v;
-          else if(k.startsWith("on")) n.addEventListener(k.slice(2), v);
-          else if(k==="attrs") Object.entries(v).forEach(([a,val])=> n.setAttribute(a,val));
-          else if(k==="role" || k.startsWith("aria-") || k.startsWith("data-") || k.includes("-")) n.setAttribute(k, v);
-          else n[k] = v;
-        });
-        kids.flat().forEach(k => n.append(k?.nodeType ? k : document.createTextNode(k)));
-        return n;
-      };
+    const $=s=>document.querySelector(s);
+    const el=(tag,props={},...kids)=>{const n=document.createElement(tag);
+      Object.entries(props).forEach(([k,v])=>{if(k==="class")n.className=v;
+        else if(k.startsWith("on"))n.addEventListener(k.slice(2),v);
+        else if(k==="attrs")Object.entries(v).forEach(([a,val])=>n.setAttribute(a,val));
+        else n[k]=v;});kids.flat().forEach(k=>n.append(k?.nodeType?k:document.createTextNode(k)));return n;};
 
-      function resolveContentUrl(type, view){
-        const rec = contentLocations[type];
-        if(!rec) return null;
-        return view === "field" ? rec.field : rec.category;
-      }
-
-      // -----------------------
-      // Suche (Highlight im iframe)
-      // -----------------------
-      function clearMarks(doc){
-        doc?.querySelectorAll('mark.__hit')?.forEach(m=>{
-          const t = doc.createTextNode(m.textContent);
-          m.replaceWith(t);
-        });
-      }
-      function highlight(doc, term){
-        if(!term) return;
-        // CSS für Markierungen injizieren (nur einmal)
-        if(!doc.getElementById('__search_mark_style')){
-          const st = doc.createElement('style');
-          st.id='__search_mark_style';
-          st.textContent = 'mark.__hit{background:#ffea8a;padding:0 .08em}';
-          (doc.head || doc.body).appendChild(st);
-        }
-        const rx = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi');
-        const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, {
-          acceptNode(node){
-            const v = node.nodeValue;
-            if(!v || !v.trim()) return NodeFilter.FILTER_REJECT;
-            if(!rx.test(v)) return NodeFilter.FILTER_REJECT;
-            return NodeFilter.FILTER_ACCEPT;
-          }
-        });
-        const nodes = [];
-        while(walker.nextNode()) nodes.push(walker.currentNode);
-        nodes.forEach(node=>{
-          const frag = doc.createDocumentFragment();
-          let last = 0;
-          node.nodeValue.replace(rx, (m, idx)=>{
-            frag.append(doc.createTextNode(node.nodeValue.slice(last, idx)));
-            const mark = doc.createElement('mark'); mark.className='__hit'; mark.textContent=m;
-            frag.append(mark);
-            last = idx + m.length;
-            return m;
-          });
-          frag.append(doc.createTextNode(node.nodeValue.slice(last)));
-          node.parentNode.replaceChild(frag, node);
-        });
-      }
-      function applySearchToFrame(){
-        const q = $("#globalSearchInput").value.trim();
-        const frame = document.querySelector("#mappingDisplay iframe");
-        if(!frame) return;
-        try{
-          const doc = frame.contentDocument; // same-origin oder srcdoc
-          if(!doc) return;
-          clearMarks(doc);
-          if(q) highlight(doc, q);
-          $("#mappingDisplay").style.outline = 'none';
-        }catch{
-          // Cross-Origin: nicht zugreifbar
-          $("#mappingDisplay").style.outline = q ? '2px dashed #c7d2fe' : 'none';
-        }
-      }
-
-      // -----------------------
-      // Chips
-      // -----------------------
-      function renderTypeChips(){
-        const wrap = $("#dataTypes");
-        wrap.innerHTML = "";
-        if(!selectedDataType && dataTypes.length) selectedDataType = dataTypes[0];
-        dataTypes.forEach(t=>{
-          const chip = el("button", {
-            class: "chip" + (selectedDataType===t ? " active" : ""),
-            textContent: t,
-            type: "button",
-            onclick: async (e) => {
-              selectedDataType = t;
-              wrap.querySelectorAll(".chip").forEach(b => b.classList.toggle("active", b === e.currentTarget));
-              await renderMapping();
-            }
-          });
-          wrap.append(chip);
-        });
-      }
-
-      // -----------------------
-      // Haupt-Render
-      // -----------------------
-      async function renderMapping(){
-        const container = $("#mappingDisplay");
-        container.innerHTML = "";
-
-        if(!selectedDataType){
-          container.innerHTML = `<div class="table-wrap" style="color:var(--muted)">Bitte zuerst Datenart wählen.</div>`;
-          return;
-        }
-
-        const url = resolveContentUrl(selectedDataType, viewMode);
-        if(!url){
-          container.innerHTML = `<div class="table-wrap" style="color:#b91c1c">Kein Pfad für ${selectedDataType} / ${viewMode} konfiguriert.</div>`;
-          return;
-        }
-        const absUrl = new URL(url, location.href).toString();
-
-        // Header (Pills + Öffnen-Button)
-        const tools = el('div',{class:'sticky-tools'},
-          el('div',{class:'pills'},
-            el('span',{class:'pill-name'}, byId.get(selectedSource)?.name || selectedSource),
-            el('span',{class:'pill-sep','aria-hidden':'true'}, '→'),
-            el('span',{class:'pill-name'}, targetName)
-          ),
-          el('div',{class:'pills'}, `${selectedDataType} • ${viewMode==='category'?'Kategorien':'Felder'}`),
-          el('a',{href:absUrl,target:'_blank',class:'btn',style:'margin-left:auto'},'Öffnen')
-        );
-        container.append(tools);
-
-        // Wrapper
-        const wrap = el('div',{class:'table-wrap'});
-        const status = el('div',{class:'status'}, `Lade: ${absUrl} …`);
-        const frame = el('iframe',{ loading:'lazy' });
-        wrap.append(status, frame);
-        container.append(wrap);
-
-        // 1) fetch → srcdoc (same-origin auf GitHub Pages)
-        try{
-          const res = await fetch(absUrl, { cache:'no-cache' });
-          if(!res.ok) throw new Error(`HTTP ${res.status}`);
-          let html = await res.text();
-
-          // <base> einsetzen, damit relative Pfade funktionieren
-          const baseHref = absUrl.replace(/[^/]*$/, '');
-          const baseTag = `<base href="${baseHref}">`;
-          if(/<head[^>]*>/i.test(html)){
-            html = html.replace(/<head[^>]*>/i, m => `${m}\n${baseTag}`);
-          }else if(/<html[^>]*>/i.test(html)){
-            html = html.replace(/<html[^>]*>/i, m => `${m}\n<head>${baseTag}</head>`);
-          }else{
-            html = `<head>${baseTag}</head>` + html;
-          }
-
-          frame.srcdoc = html;
-          status.textContent = "";                 // <-- kein „eingebettet aus“
-          frame.addEventListener('load', applySearchToFrame);
-          // falls das load-event bei srcdoc schon fired: kurz verzögert anwenden
-          setTimeout(applySearchToFrame, 0);
-          autoResize(frame);
-          return;
-        }catch(err){
-          // 2) Fallback: direktes src
-          console.warn('fetch fehlgeschlagen → fallback auf <iframe src>:', err);
-          status.textContent = `Direktes Einbetten: ${absUrl}`;
-          frame.src = absUrl;
-          frame.addEventListener('load', ()=>{
-            status.textContent = "";               // ebenfalls ohne Hinweis
-            autoResize(frame);
-            applySearchToFrame();
-          });
-          frame.addEventListener('error', ()=>{
-            status.innerHTML = `<span style="color:#b91c1c">Konnte nicht laden: ${absUrl}</span>`;
-          });
-        }
-      }
-
-      // Auto-Höhenanpassung (bei srcdoc / same-origin)
-      function autoResize(frame){
-        setTimeout(()=>{
-          try{
-            const resize = ()=>{
-              const h = frame.contentDocument?.body?.scrollHeight;
-              if(h && Number.isFinite(h)) frame.style.height = Math.max(420, h + 10) + 'px';
-            };
-            resize();
-            if('ResizeObserver' in window && frame.contentDocument?.body){
-              new ResizeObserver(resize).observe(frame.contentDocument.body);
-            }
-          }catch{/* Cross-Origin: keine Messung möglich */}
-        },0);
-      }
-
-      // -----------------------
-      // Suche: Events
-      // -----------------------
-      const globalInput = $("#globalSearchInput");
-      const clearBtn = $("#clearSearch");
-      function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
-
-      globalInput.addEventListener("input", debounce(()=>{
-        applySearchToFrame();
-      }, 200));
-
-      clearBtn.addEventListener("click", ()=>{
-        globalInput.value = "";
-        applySearchToFrame();
+    function clearMarks(doc){doc?.querySelectorAll('mark.__hit')?.forEach(m=>m.replaceWith(doc.createTextNode(m.textContent))); }
+    function highlight(doc,term){
+      if(!term)return;
+      const rx=new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi');
+      const walker=doc.createTreeWalker(doc.body,NodeFilter.SHOW_TEXT,{acceptNode(n){
+        if(!n.nodeValue.trim())return NodeFilter.FILTER_REJECT;
+        if(!rx.test(n.nodeValue))return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;}});
+      const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
+      nodes.forEach(node=>{
+        const frag=doc.createDocumentFragment();let last=0;
+        node.nodeValue.replace(rx,(m,idx)=>{
+          frag.append(doc.createTextNode(node.nodeValue.slice(last,idx)));
+          const mark=doc.createElement('mark');mark.className='__hit';mark.textContent=m;
+          frag.append(mark);last=idx+m.length;return m;});
+        frag.append(doc.createTextNode(node.nodeValue.slice(last)));
+        node.parentNode.replaceChild(frag,node);
       });
+    }
+    function applySearchToFrame(){
+      const q=$("#globalSearchInput").value.trim();
+      const frame=document.querySelector("#mappingDisplay iframe");if(!frame)return;
+      try{const doc=frame.contentDocument;if(!doc)return;
+        clearMarks(doc);if(q)highlight(doc,q);}catch{}
+    }
 
-      // -----------------------
-      // Tabs
-      // -----------------------
-      $("#viewFieldBtn").addEventListener("click", async ()=>{
-        viewMode = "field";
-        $("#viewFieldBtn").classList.add("active"); $("#viewFieldBtn").setAttribute('aria-selected','true');
-        $("#viewCategoryBtn").classList.remove("active"); $("#viewCategoryBtn").setAttribute('aria-selected','false');
-        await renderMapping();
+    function renderTypeChips(){
+      const wrap=$("#dataTypes");wrap.innerHTML="";
+      dataTypes.forEach(t=>{
+        const chip=el("button",{class:"chip"+(selectedDataType===t?" active":""),textContent:t,type:"button",
+          onclick:async e=>{selectedDataType=t;wrap.querySelectorAll(".chip").forEach(b=>b.classList.toggle("active",b===e.currentTarget));await renderMapping();}});
+        wrap.append(chip);
       });
-      $("#viewCategoryBtn").addEventListener("click", async ()=>{
-        viewMode = "category";
-        $("#viewCategoryBtn").classList.add("active"); $("#viewCategoryBtn").setAttribute('aria-selected','true');
-        $("#viewFieldBtn").classList.remove("active"); $("#viewFieldBtn").setAttribute('aria-selected','false');
-        await renderMapping();
-      });
-      document.querySelector('.segment').addEventListener('keydown', (e)=>{
-        if(e.key==='ArrowRight' || e.key==='ArrowLeft'){
-          const next = document.activeElement.id==='viewFieldBtn' ? $("#viewCategoryBtn") : $("#viewFieldBtn");
-          next.focus(); next.click(); e.preventDefault();
-        }
-      });
+    }
 
-      // -----------------------
-      // Init
-      // -----------------------
-      (async function init(){
-        renderTypeChips();
-        await renderMapping();
-      })();
-    </script>
-  </body>
+    async function renderMapping(){
+      const container=$("#mappingDisplay");container.innerHTML="";
+      const url=contentLocations[selectedDataType]?.[viewMode];if(!url){container.textContent="Kein Mapping";return;}
+      const absUrl=new URL(url,location.href).toString();
+      const tools=el('div',{class:'sticky-tools'},
+        el('div',{class:'pill'},`${selectedDataType} • ${viewMode==='category'?'Kategorien':'Felder'}`),
+        el('a',{href:absUrl,target:'_blank',class:'btn',style:'margin-left:auto'},'Öffnen'));
+      container.append(tools);
+      const wrap=el('div',{class:'table-wrap'});const status=el('div',{class:'status'},`Lade: ${absUrl} …`);
+      const frame=el('iframe',{loading:'lazy'});wrap.append(status,frame);container.append(wrap);
+      try{
+        const res=await fetch(absUrl,{cache:'no-cache'});if(!res.ok)throw new Error();
+        let html=await res.text();
+        const baseHref=absUrl.replace(/[^/]*$/,'');const baseTag=`<base href="${baseHref}">`;
+        if(/<head[^>]*>/i.test(html)){html=html.replace(/<head[^>]*>/i,m=>`${m}\n${baseTag}`);}
+        else if(/<html[^>]*>/i.test(html)){html=html.replace(/<html[^>]*>/i,m=>`${m}\n<head>${baseTag}</head>`);}
+        else{html=`<head>${baseTag}</head>`+html;}
+        frame.srcdoc=html;status.textContent="";
+        frame.addEventListener('load',applySearchToFrame);setTimeout(applySearchToFrame,0);
+      }catch{status.textContent="Konnte nicht laden.";frame.src=absUrl;}
+    }
+
+    $("#viewFieldBtn").addEventListener("click",async()=>{viewMode="field";$("#viewFieldBtn").classList.add("active");$("#viewCategoryBtn").classList.remove("active");await renderMapping();});
+    $("#viewCategoryBtn").addEventListener("click",async()=>{viewMode="category";$("#viewCategoryBtn").classList.add("active");$("#viewFieldBtn").classList.remove("active");await renderMapping();});
+
+    const globalInput=$("#globalSearchInput");const clearBtn=$("#clearSearch");
+    globalInput.addEventListener("input",()=>{applySearchToFrame();});
+    clearBtn.addEventListener("click",()=>{globalInput.value="";applySearchToFrame();});
+
+    (async function init(){renderTypeChips();await renderMapping();})();
+  </script>
+</body>
 </html>
